@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+
+    <style>
+        :root{
+            --canvas-bg : #ccc
+        }
+        #contain{
+            margin: 0;
+            height: 100vh;
+            width: 100vw;
+            background: var(--canvas-bg)
+        }
+        body{
+            margin: 0;
+        }
+        .button-wrapper{
+            position: fixed;
+            top : 30px;
+            right: 200px;
+            display: flex;
+        }
+        .button{
+            margin-right: 10px;
+            height: 30px;
+            width: 50px;
+        }
+
+    </style>
+</head>
+<body>
+    
+    <div id="contain">
+        <canvas  id="canvas"></canvas>
+        <div class="button-wrapper">
+            <button class="button" onclick="handlerAnimateFire()">启动</button>
+            <button class="button" onclick="handlerLaunch()">发射</button>
+            <button class="button" onclick="handlerStop()">停止</button>
+        </div>
+    </div>
+</body>
+
+<script>
+    let ctx = document.getElementById('canvas'),
+        content = ctx.getContext('2d'),
+        WIDTH,
+        HEIGHT,
+        canvasBackgroundColor = getComputedStyle(contain).getPropertyValue('--canvas-bg'); 
+
+    WIDTH = document.documentElement.clientWidth;
+    HEIGHT = document.documentElement.clientHeight;
+
+    ctx.width = WIDTH;
+    ctx.height = HEIGHT;
+
+    class Rocket{
+        fireYOffSet = 0
+        launchSpeed = 2
+        static RocketColor = '#F9E2FE'
+        static WingsBoosterColor = '#4C3198'
+        static RocketBodyLogoColor = '#4C3198'
+        static WingsHeadColor = 'crimson'
+        static RocketBoosterColor = '#C38382'
+        static RocketFireColor = 'yellow'
+        static interval = null
+        constructor(id,x,y,size = 1){
+            this.id = id
+            this.x = x
+            this.y = y
+            this.size = size
+            this.bodyWidth = 200 * this.size
+            this.bodyHeight = 300 * this.size
+        }
+
+
+        drawRocketBody(){
+            content.beginPath()
+            content.fillStyle = Rocket.RocketColor
+            content.fillRect(this.x,this.y,this.bodyWidth,this.bodyHeight)
+            content.ellipse(this.x+this.bodyWidth/2,this.y,this.bodyWidth/2,150,0,0,Math.PI,true)
+            content.ellipse(this.x+this.bodyWidth/2,this.y+this.bodyHeight,this.bodyWidth/2,30*this.size,0,0,Math.PI,false)
+            content.fill()
+        }
+
+        drawRocketBodyLogo(){
+            //绘制火箭主体logo
+            const outterCircleR = 60
+            const innerCircleR = 50
+            content.beginPath()
+            content.fillStyle = Rocket.RocketBodyLogoColor
+            content.arc(this.x+this.bodyWidth/2,this.y,outterCircleR*this.size,0,Math.PI * 2,true)
+            content.fill()
+
+            content.beginPath()
+            const grd = content.createRadialGradient(this.x+this.bodyWidth/2,this.y,outterCircleR * this.size,this.x,this.y,0)
+            grd.addColorStop(0,Rocket.RocketColor)
+            grd.addColorStop(1,Rocket.RocketBodyLogoColor)
+            content.fillStyle = grd
+            content.arc(this.x+this.bodyWidth/2,this.y,innerCircleR*this.size,0,Math.PI * 2,true)
+            content.fill()
+        }
+
+        drawRocketWings(){
+            content.beginPath()
+            const wingsWidth = 60 * this.size
+            const wingsHeight = 200 * this.size
+            const leftWingOffSet = wingsWidth
+            const RightWingOffSet = this.bodyWidth
+            content.fillStyle = Rocket.RocketColor
+            content.fillRect(this.x-leftWingOffSet,this.y,wingsWidth,wingsHeight)
+            content.fillRect(this.x+RightWingOffSet,this.y,wingsWidth,wingsHeight)
+            content.ellipse(this.x-leftWingOffSet+wingsWidth/2,this.y+wingsHeight,wingsWidth/2,20,0,0,Math.PI,false)
+            content.ellipse(this.x+RightWingOffSet+wingsWidth/2,this.y+wingsHeight,wingsWidth/2,20,0,0,Math.PI,false)
+            content.fill()
+            //绘制火箭翼颜色
+            content.beginPath()
+            content.ellipse(this.x-leftWingOffSet+wingsWidth/2,this.y,wingsWidth/2,50,0,0,Math.PI,true)
+            content.ellipse(this.x-leftWingOffSet+wingsWidth/2,this.y,wingsWidth/2,20,0,0,Math.PI,false)
+            content.ellipse(this.x+RightWingOffSet+wingsWidth/2,this.y,wingsWidth/2,50,0,0,Math.PI,true)
+            content.ellipse(this.x+RightWingOffSet+wingsWidth/2,this.y,wingsWidth/2,20,0,0,Math.PI,false)
+            content.fillStyle = Rocket.WingsHeadColor
+            content.fill()
+
+            // //绘制助推器
+            content.beginPath()
+            content.fillStyle = Rocket.WingsBoosterColor
+            const xleftRocketPusherOffSet = wingsWidth
+            const yRocketPusherOffSet = wingsHeight + 50/2
+            const xRightRocketPusherOffSet = this.bodyWidth
+            const pusherWidth = 90 * this.size
+            const pusherHeight = 100 * this.size
+            content.ellipse(this.x-xleftRocketPusherOffSet+xleftRocketPusherOffSet,this.y+yRocketPusherOffSet,pusherWidth,pusherHeight,0,Math.PI * 1.5,Math.PI,true)
+            content.strokeStyle = Rocket.WingsBoosterColor
+            content.lineTo(this.x,this.y+yRocketPusherOffSet)
+            content.lineTo(this.x,this.y+yRocketPusherOffSet-pusherHeight)
+            content.fill()
+
+            content.beginPath()
+            content.ellipse(this.x+xRightRocketPusherOffSet,this.y+yRocketPusherOffSet,pusherWidth,pusherHeight,0,Math.PI * 1.5,0,false)
+            content.lineTo(this.x+xRightRocketPusherOffSet,this.y+yRocketPusherOffSet)
+            content.lineTo(this.x+xRightRocketPusherOffSet,this.y+yRocketPusherOffSet-pusherHeight)
+            content.fillStyle = Rocket.WingsBoosterColor
+            content.fill()
+            
+        }
+
+        drawRocketFire(){
+            content.beginPath()
+            const fireXOffSet = this.bodyWidth/2 - (140 * this.size /2)+10
+            const fireYOffSet = this.bodyHeight
+            const fireWidth = 120 * this.size
+            const fireHeight = this.bodyHeight/2 * this.size
+            let grd = content.createLinearGradient(this.x+fireXOffSet, this.y+fireYOffSet, this.x+fireXOffSet, this.y+this.bodyHeight+fireHeight-this.fireYOffSet);
+            grd.addColorStop(0,Rocket.RocketFireColor)
+            grd.addColorStop(0.5,Rocket.RocketFireColor)
+            grd.addColorStop(1,canvasBackgroundColor)
+            content.fillStyle = grd
+            content.fillRect(this.x+fireXOffSet,this.y+fireYOffSet,fireWidth,fireHeight+this.fireYOffSet)
+            content.fill()
+        }
+
+        drawRocketBooster(){
+            content.beginPath()
+            content.fillStyle = Rocket.RocketBoosterColor
+            const boosterWidht = 140
+            const boosterHeight = 40
+            const boosterBottom = boosterWidht / 2
+            const rectXOffSet = 30
+            const circleXOffSet = rectXOffSet + boosterWidht/2
+            content.fillRect(this.x+rectXOffSet*this.size,this.y+this.bodyHeight,boosterWidht * this.size, boosterHeight * this.size)
+            content.fill()
+
+            content.beginPath()
+            content.fillStyle = Rocket.RocketBoosterColor
+            content.ellipse(this.x+circleXOffSet*this.size,this.y+this.bodyHeight+boosterHeight * this.size,boosterBottom * this.size,20,0,0,Math.PI,false )
+            content.fill()
+
+        }
+
+
+        drawRocket(){
+            this.drawRocketFire()
+            this.drawRocketBooster()
+            this.drawRocketBody()
+            this.drawRocketBodyLogo()
+            this.drawRocketWings()
+        }
+
+        animateFire(){
+            this.fireYOffSet += 10
+            const fireXOffSet = this.bodyWidth/2 - (140 * this.size /2)+10
+            const fireYOffSet = this.bodyHeight
+            const fireWidth = 120 * this.size
+            const fireHeight = this.bodyHeight/2 * this.size
+            content.clearRect(this.x+fireXOffSet,this.y+fireYOffSet,fireWidth,fireHeight+this.fireYOffSet)
+            if (this.fireYOffSet >= 50 ) {
+                this.fireYOffSet = 0
+            }
+            this.drawRocketFire()
+            this.drawRocketBooster()
+            this.drawRocketBody()
+            this.drawRocketBodyLogo()
+            this.drawRocketWings()
+            Rocket.interval =  requestAnimationFrame(() => {
+              this.animateFire()
+            })
+        }
+
+        launch(){
+            const xStart = this.x - 90 * this.size
+            const yStart = this.y - 150
+            const xEnd =( 90*2+this.bodyWidth) * this.size
+            const yEnd = 150 + this.bodyHeight + this.bodyHeight/2 * this.size
+            content.clearRect(xStart,yStart,xEnd,yEnd)
+            this.y -= this.launchSpeed
+            if(this.y < -yEnd){
+                this.y = HEIGHT
+            }
+            Rocket.interval =  requestAnimationFrame(() => {
+                this.launch()
+                this.drawRocket()
+            })
+        }
+
+        stop(){
+            cancelAnimationFrame(Rocket.interval)
+            Rocket.interval = null
+        }
+    }
+
+
+    function init() {
+        const rocket = new Rocket(1,900,300,1)
+        rocket.drawRocket()
+        return rocket
+    }
+
+    const rocket = init()
+    function handlerLaunch(){
+        rocket.launch()
+    }
+    function handlerAnimateFire(){
+        rocket.animateFire()
+    }
+
+    function handlerStop(){
+        rocket.stop()
+    }
+    
+</script>
+</html>
